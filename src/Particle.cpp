@@ -5,91 +5,106 @@
 #include <cmath>
 #include <random>
 
+#include <QRandomGenerator>
 
-inline int genRandomNumber(int limit)
+Particle::Particle(const QPointF& center, int particle_size, int speed_limit)
+    : m_particleSize(particle_size),
+      m_center(center)
 {
-    std::random_device rd;
-    std::mt19937 mt(rd());
-    return round(double(limit) * (mt() - mt.min())/(mt.max() - mt.min()));
-}
-
-
-inline QPointF genRandomCenter(int particleSize)
-{
-    return QPointF( particleSize/2 + genRandomNumber(SCENE_WIDTH - particleSize),
-                    particleSize/2 + genRandomNumber(SCENE_HEIGHT - particleSize) );
-}
-
-
-
-Particle::Particle(int particleSize, int speedLimit):
-    _center(genRandomCenter(particleSize)),
-    _particleSize(particleSize),
-    _speed( genRandomNumber(speedLimit) * (genRandomNumber(1)*2 - 1),
-            genRandomNumber(speedLimit) * (genRandomNumber(1)*2 - 1) )
-{
+    m_speed.setX( QRandomGenerator::global()->bounded(-speed_limit, speed_limit) );
+    m_speed.setY( QRandomGenerator::global()->bounded(-speed_limit, speed_limit) );
 }
 
 void Particle::move()
 {
-    if( _center.x() + _particleSize / 2 > SCENE_WIDTH ||
-            _center.x() - _particleSize / 2 < 0)
-        _speed.setX( -_speed.x() );
-    if( _center.y() + _particleSize / 2 > SCENE_HEIGHT ||
-            _center.y() - _particleSize / 2 < 0)
-        _speed.setY( -_speed.y() );
-    _center.setX( _center.x() + _speed.x() );
-    _center.setY( _center.y() + _speed.y() );
+    if( m_center.x() + m_particleSize / 2 > SCENE_WIDTH || m_center.x() - m_particleSize / 2 < 0 )
+    {
+        m_speed.setX( -m_speed.x() );
+    }
+    if( m_center.y() + m_particleSize / 2 > SCENE_HEIGHT || m_center.y() - m_particleSize / 2 < 0 )
+    {
+        m_speed.setY( -m_speed.y() );
+    }
+    m_center.setX( m_center.x() + m_speed.x() );
+    m_center.setY( m_center.y() + m_speed.y() );
 }
 
-void Particle::setCenter(int x, int y)
+void Particle::checkContact(Particle* other)
 {
-    _center = QPoint(x,y);
-}
+    qreal distance = ( QVector2D( m_center ) - QVector2D( other->m_center ) ).length();
+    bool is_contact = distance < ( m_particleSize + other->m_particleSize ) / 2;
+    // TODO additional check
+    if( is_contact ) {
+        QVector2D n = QVector2D( other->m_center.x() - m_center.x(),
+                                 other->m_center.y() - m_center.y() ).normalized();
+        QVector2D tau = QVector2D( n.y(), -n.x() );
 
-QPointF Particle::getCenter() const
-{
-    return _center;
-}
+        double vn1 = QVector2D::dotProduct( m_speed, n );
+        double vt1 = QVector2D::dotProduct( m_speed,tau );
+        double vn2 = QVector2D::dotProduct( other->m_speed, n );
+        double vt2 = QVector2D::dotProduct( other->m_speed, tau );
+        if( vn1 < 0 && vn2 > 0 ) {
+            return;
+        }
 
-void Particle::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
-{
-    painter->setBrush( _isInfected? Qt::red : Qt::cyan );
-    painter->drawEllipse( boundingRect().adjusted(1,1,-1,-1) );
-    Q_UNUSED(option)
-    Q_UNUSED(widget)
-}
+        double vn2_ = vn1;
+        double vn1_ = vn1 + vn2 - vn2_;
 
-QRectF Particle::boundingRect() const
-{
-    return QRectF( _center.x() - _particleSize/2,
-                   _center.y() - _particleSize/2,
-                   _particleSize,
-                   _particleSize );
-}
-
-QVector2D Particle::getSpeed() const
-{
-    return _speed;
+        m_speed = vt1 * tau + vn1_ * n;
+        other->m_speed = vt2 * tau + vn2_ * n;
+        if( m_isInfected ) {
+            other->m_isInfected = true;
+        }
+        if( other->m_isInfected ) {
+            m_isInfected = true;
+        }
+    }
 }
 
 void Particle::setSpeed(const QVector2D& speed)
 {
-    _speed = speed;
-}
-
-void Particle::setInfected(bool value)
-{
-    _isInfected = value;
+    m_speed = speed;
 }
 
 bool Particle::isInfected() const
 {
-    return _isInfected;
+    return m_isInfected;
 }
 
-int Particle::getParticleSize() const
+void Particle::setInfected(bool is_infected)
 {
-    return _particleSize;
+    m_isInfected = is_infected;
 }
 
+int Particle::particleSize() const
+{
+    return m_particleSize;
+}
+
+QPointF Particle::center() const
+{
+    return m_center;
+}
+
+GraphicsParticle::GraphicsParticle(const QPointF& center, int particle_size, int speed_limit, QGraphicsItem* parent)
+    : Particle(center, particle_size, speed_limit),
+      QGraphicsItem(parent)
+{}
+
+void GraphicsParticle::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
+{
+    painter->setBrush( isInfected()? Qt::red : Qt::blue );
+    painter->drawEllipse( boundingRect().adjusted( 1, 1, -1, -1 ) );
+    Q_UNUSED(option)
+    Q_UNUSED(widget)
+}
+
+QRectF GraphicsParticle::boundingRect() const
+{
+    QPointF c = center();
+    int particle_size = particleSize();
+    return QRectF( c.x() - particle_size/2,
+                   c.y() - particle_size/2,
+                   particle_size,
+                   particle_size );
+}

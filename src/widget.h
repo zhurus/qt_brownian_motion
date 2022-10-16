@@ -1,60 +1,86 @@
 #pragma once
 
-
 #include "Particle.h"
-
-#include <QWidget>
 #include "Viewport.h"
+#include <QWidget>
 #include <QGraphicsScene>
-#include <QGridLayout>
 #include <QTimer>
-
 #include <QSpinBox>
 #include <QLabel>
 #include <QPushButton>
-
 #include <vector>
 
 
-using namespace std;
+//---------------------------------------------------------------------------//
+//  Settings                                                                 //
+//---------------------------------------------------------------------------//
+
+struct Settings
+{
+    int timestep_msec;
+    int particles_count;
+    int particle_size;
+    int particle_speed_limit;
+};
+
+//---------------------------------------------------------------------------//
+//  ParticlesManager                                                         //
+//---------------------------------------------------------------------------//
+
+class ParticlesManager : public QObject
+{
+    Q_OBJECT
+public:
+    explicit ParticlesManager(QGraphicsScene* scene, QObject* parent = nullptr);
+
+    void reset(const Settings& settings);
+    Q_SLOT void start();
+    Q_SLOT void stop();
+
+private:
+    Q_SLOT void timeout();
+
+private:
+    QGraphicsScene* const m_scene;
+    std::vector<Particle*> m_particles;
+    QTimer m_timer;
+};
+
+//---------------------------------------------------------------------------//
+//  Widget                                                                   //
+//---------------------------------------------------------------------------//
 
 class Widget : public QWidget
 {
     Q_OBJECT
 public:
+    enum State {
+        Idle,
+        Started,
+        Paused
+    };
+public:
     Widget(QWidget *parent = nullptr);
-    ~Widget();
-
-    void init();
-    void run();
-
-private slots:
-    void timeout();
-    void start();
-    void pause();
-    void stop();
 
 private:
-    void checkHits();
-    bool isHit(int id1, int id2);
-    void hit(int id1, int id2);
-    void increaseTime();
+    Q_SLOT void start();
+    Q_SLOT void pause();
+    Q_SLOT void stop();
 
-    vector<PtrParticle> _particle_array;
-    QTimer _timer;
-    bool _initialized = {false};
+private:
+    State m_state = Idle;
 
-    QGraphicsScene* _scene;
-    QGraphicsView* _view;
+    ParticlesManager* m_particlesManager;
 
-    QSpinBox* _nParticlesEdit;
-    QSpinBox* _particleSizeEdit;
-    QSpinBox* _speedLimitEdit;
-    QSpinBox* _dtEdit;
+    QGraphicsScene* m_scene;
+    QGraphicsView* m_view;
 
-    QPushButton* _startBtn;
-    QPushButton* _pauseBtn;
-    QPushButton* _stopBtn;
+    QSpinBox* m_particlesCountEdit;
+    QSpinBox* m_particleSizeEdit;
+    QSpinBox* m_speedLimitEdit;
+    QSpinBox* m_timestepEdit;
 
-    QLabel* _timeOutput;
+    QPushButton* m_startBtn;
+    QPushButton* m_pauseBtn;
+    QPushButton* m_stopBtn;
 };

@@ -1,192 +1,147 @@
 #include "widget.h"
 
+#include <QFormLayout>
+#include <QHBoxLayout>
+#include <QRandomGenerator>
+
+//---------------------------------------------------------------------------//
+//  ParticlesManager                                                         //
+//---------------------------------------------------------------------------//
+
+ParticlesManager::ParticlesManager(QGraphicsScene* scene, QObject* parent)
+    : QObject(parent),
+      m_scene(scene)
+{
+    connect(&m_timer, &QTimer::timeout, this, &ParticlesManager::timeout);
+}
+
+void ParticlesManager::reset(const Settings& settings)
+{
+    m_timer.stop();
+    m_timer.setInterval(settings.timestep_msec);
+
+    m_scene->clear();
+    m_particles.clear();
+
+    m_particles.reserve(settings.particles_count);
+    int min_x = settings.particle_size / 2;
+    int max_x = SCENE_WIDTH - settings.particle_size / 2;
+    int min_y = min_x;
+    int max_y = SCENE_HEIGHT - settings.particle_size / 2;
+    for( int i = 0; i < settings.particles_count; ++i ) {
+        QPointF center( QRandomGenerator::global()->bounded( min_x, max_x ),
+                        QRandomGenerator::global()->bounded( min_y, max_y ) );
+        auto particle = new GraphicsParticle( center, settings.particle_size, settings.particle_speed_limit );
+        if( i == 0 ) {
+            particle->setInfected(true);
+        }
+        m_particles.push_back(particle);
+        m_scene->addItem(particle);
+    }
+}
+
+void ParticlesManager::start()
+{
+    m_timer.start();
+}
+
+void ParticlesManager::stop()
+{
+    m_timer.stop();
+}
+
+void ParticlesManager::timeout()
+{
+    for( size_t i = 0; i < m_particles.size(); ++i ) {
+        for( size_t j = i+1; j < m_particles.size(); ++j ) {
+            m_particles[i]->checkContact( m_particles[j] );
+        }
+    }
+
+    for( auto particle : m_particles ) {
+        particle->move();
+    }
+    m_scene->update(m_scene->sceneRect());
+}
+
+//---------------------------------------------------------------------------//
+//  Widget                                                                   //
+//---------------------------------------------------------------------------//
+
 Widget::Widget(QWidget *parent):
     QWidget(parent),
-    _scene(new QGraphicsScene(0,0,SCENE_WIDTH,SCENE_HEIGHT,this)),
-    _view(new Viewport(_scene,this)),
-    _nParticlesEdit(new QSpinBox(this)),
-    _particleSizeEdit(new QSpinBox(this)),
-    _speedLimitEdit(new QSpinBox(this)),
-    _dtEdit(new QSpinBox(this)),
-    _startBtn(new QPushButton(tr("Start"),this)),
-    _pauseBtn(new QPushButton(tr("Pause"),this)),
-    _stopBtn(new QPushButton(tr("Stop"),this)),
-    _timeOutput(new QLabel("0",this))
+    m_scene(new QGraphicsScene(0, 0, SCENE_WIDTH, SCENE_HEIGHT, this)),
+    m_view(new Viewport(m_scene, this)),
+    m_particlesCountEdit(new QSpinBox(this)),
+    m_particleSizeEdit(new QSpinBox(this)),
+    m_speedLimitEdit(new QSpinBox(this)),
+    m_timestepEdit(new QSpinBox(this)),
+    m_startBtn(new QPushButton(tr("Start"), this)),
+    m_pauseBtn(new QPushButton(tr("Pause"), this)),
+    m_stopBtn(new QPushButton(tr("Stop"), this))
 {
-    _view->scale(1,-1);
-    QGridLayout* layout = new QGridLayout(this);
-    layout->addWidget(_view,0,0);
+    m_particlesManager = new ParticlesManager( m_scene, this );
 
-    QGridLayout* sideLayout = new QGridLayout();
-    layout->addLayout(sideLayout,0,1);
+    auto main_layout = new QHBoxLayout(this);
+    main_layout->addWidget( m_view );
 
-    _nParticlesEdit->setRange(2,10000);
-    _nParticlesEdit->setValue(200);
+    auto side_layout = new QFormLayout();
+    main_layout->addLayout( side_layout );
 
-    _particleSizeEdit->setValue(10);
-    _particleSizeEdit->setMinimum(1);
+    side_layout->addRow( tr("Number of particles"), m_particlesCountEdit );
+    side_layout->addRow( tr("Size of particle"), m_particleSizeEdit );
+    side_layout->addRow( tr("Speed limit"), m_speedLimitEdit );
+    side_layout->addRow( tr("Time step, msec"), m_timestepEdit );
 
-    _speedLimitEdit->setValue(5);
-    _speedLimitEdit->setMinimum(1);
+    m_particlesCountEdit->setRange(2, 10000);
+    m_particlesCountEdit->setValue(10);
 
-    _dtEdit->setValue(30);
-    _dtEdit->setRange(1,10000);
+    m_particleSizeEdit->setValue(10);
+    m_particleSizeEdit->setMinimum(1);
 
-    sideLayout->addWidget( new QLabel(tr("Number of particles"),this),0,0 );
-    sideLayout->addWidget(_nParticlesEdit,0,1);
+    m_speedLimitEdit->setValue(5);
+    m_speedLimitEdit->setMinimum(1);
 
-    sideLayout->addWidget( new QLabel(tr("Size of particle"),this),1,0 );
-    sideLayout->addWidget(_particleSizeEdit,1,1);
+    m_timestepEdit->setValue(30);
+    m_timestepEdit->setRange(1, 10000);
 
-    sideLayout->addWidget( new QLabel(tr("Speed limit"),this),2,0 );
-    sideLayout->addWidget(_speedLimitEdit,2,1);
+    connect( m_startBtn, &QPushButton::clicked,
+             this, &Widget::start );
+    side_layout->addWidget( m_startBtn );
 
-    sideLayout->addWidget( new QLabel(tr("Time step, msec"),this),3,0 );
-    sideLayout->addWidget(_dtEdit,3,1);
+    connect( m_pauseBtn, &QPushButton::clicked,
+             this, &Widget::pause );
+    side_layout->addWidget( m_pauseBtn );
 
-
-    connect( _startBtn, SIGNAL(clicked()),
-             this, SLOT(start()) );
-    sideLayout->addWidget( _startBtn, 4,1 );
-
-    connect( _pauseBtn, SIGNAL(clicked()),
-             this, SLOT(pause()) );
-    sideLayout->addWidget( _pauseBtn, 5,1 );
-
-    connect( _stopBtn, SIGNAL(clicked()),
-             this, SLOT(stop()) );
-    sideLayout->addWidget( _stopBtn, 6,1 );
-
-    sideLayout->addWidget( new QLabel(tr("Time elapsed")), 7,0);
-    sideLayout->addWidget(_timeOutput, 7, 1);
-
-    connect( &_timer, SIGNAL(timeout()),
-             this, SLOT(timeout()) );
-}
-
-Widget::~Widget()
-{
-}
-
-void Widget::init()
-{
-    int particleSize = _particleSizeEdit->value();
-    int nParticles = _nParticlesEdit->value();
-    int speedLimit = _speedLimitEdit->value();
-    int dt = _dtEdit->value();
-
-    for( int i = 0; i < nParticles; ++i ) {
-        auto particle = make_shared<Particle>(particleSize,speedLimit);
-        _particle_array.push_back( particle );
-        _scene->addItem( _particle_array.back().get() );
-    }
-    _particle_array.front()->setInfected( true );
-
-    _timer.setInterval(dt);
-    _initialized = true;
-}
-
-void Widget::run()
-{
-    _timer.start();
-}
-
-void Widget::timeout()
-{
-    for( auto particle : _particle_array )
-        particle->move();
-    _scene->update(_scene->sceneRect());
-    checkHits();
-    increaseTime();
+    connect( m_stopBtn, &QPushButton::clicked,
+             this, &Widget::stop );
+    side_layout->addWidget( m_stopBtn );
 }
 
 void Widget::start()
 {
-    if( !_initialized ) {
-        _particleSizeEdit->setDisabled(true);
-        _speedLimitEdit->setDisabled(true);
-        _dtEdit->setDisabled(true);
-        _nParticlesEdit->setDisabled(true);
-        init();
-        _initialized = true;
+    Settings settings;
+    settings.particle_size = m_particleSizeEdit->value();
+    settings.particle_speed_limit = m_speedLimitEdit->value();
+    settings.particles_count = m_particlesCountEdit->value();
+    settings.timestep_msec = m_timestepEdit->value();
+    if( m_state == Started ) {
+        stop();
     }
-    run();
+    if( m_state == Idle ) {
+        m_particlesManager->reset(settings);
+    }
+    m_particlesManager->start();
 }
 
 void Widget::pause()
 {
-    _timer.stop();
+    m_particlesManager->stop();
+    m_state = Paused;
 }
 
 void Widget::stop()
 {
-    _timer.stop();
-    _particleSizeEdit->setDisabled(false);
-    _speedLimitEdit->setDisabled(false);
-    _dtEdit->setDisabled(false);
-    _nParticlesEdit->setDisabled(false);
-    _particle_array.clear();
-    _initialized = false;
-    _timeOutput->setText("0");
+    m_particlesManager->stop();
+    m_state = Idle;
 }
-
-void Widget::checkHits()
-{
-    for( size_t i = 0; i < _particle_array.size(); ++i ) {
-        for( size_t j = i+1; j < _particle_array.size(); ++j ) {
-            auto p1 = _particle_array[i];
-            auto p2 = _particle_array[j];
-            if( p1->getCenter().x() - p2->getCenter().x() > p1->getParticleSize() )
-                continue;
-            if( p1->getCenter().y() - p2->getCenter().y() > p1->getParticleSize() )
-                continue;
-            if( isHit(i,j) )
-                hit(i,j);
-        }
-    }
-}
-
-bool Widget::isHit(int id1, int id2)
-{
-    double length = (QVector2D(_particle_array[id1]->getCenter()) -
-            QVector2D(_particle_array[id2]->getCenter())).length();
-    if( length < _particle_array.front()->getParticleSize() )
-        return true;
-    return false;
-}
-
-void Widget::hit(int id1, int id2)
-{
-    QVector2D speed1 = _particle_array[id1]->getSpeed();
-    QVector2D speed2 = _particle_array[id2]->getSpeed();
-    QPointF p1 = _particle_array[id1]->getCenter();
-    QPointF p2 = _particle_array[id2]->getCenter();
-
-    QVector2D n = QVector2D( p2.rx() - p1.rx(),
-                             p2.ry() - p1.ry() ).normalized();
-    QVector2D tau = { n.y(), -n.x() };
-
-    double vn1 = QVector2D::dotProduct(speed1, n);
-    double vt1 = QVector2D::dotProduct(speed1,tau);
-    double vn2 = QVector2D::dotProduct(speed2, n);
-    double vt2 = QVector2D::dotProduct(speed2,tau);
-    if( vn1 < 0 && vn2 > 0 )
-        return;
-
-    double vn2_ = vn1;
-    double vn1_ = vn1 + vn2 - vn2_;
-
-    _particle_array[id1]->setSpeed( vt1 * tau + vn1_ * n );
-    _particle_array[id2]->setSpeed( vt2 * tau + vn2_ * n );
-    if( _particle_array[id1]->isInfected() )
-        _particle_array[id2]->setInfected(true);
-    if( _particle_array[id2]->isInfected() )
-        _particle_array[id1]->setInfected(true);
-}
-
-void Widget::increaseTime()
-{
-    QString newText = QString::number(_timeOutput->text().toDouble() + double(_timer.interval()) / 1000,'f',3);
-    _timeOutput->setText( newText );
-}
-
