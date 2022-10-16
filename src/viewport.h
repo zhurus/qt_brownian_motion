@@ -1,9 +1,7 @@
 #pragma once
 
-
 #include <QGraphicsView>
 #include <QResizeEvent>
-
 
 class Viewport: public QGraphicsView
 {

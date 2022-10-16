@@ -1,9 +1,9 @@
 #pragma once
 
+#include "defs.h"
+
 #include <QGraphicsEllipseItem>
 #include <QVector2D>
-
-#include "defs.h"
 
 class Particle
 {

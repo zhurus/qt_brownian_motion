@@ -1,4 +1,4 @@
-#include "Particle.h"
+#include "particle.h"
 
 #include <cstdlib>
 #include <QPainter>

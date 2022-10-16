@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Particle.h"
-#include "Viewport.h"
+#include "particle.h"
+#include "viewport.h"
 #include <QWidget>
 #include <QGraphicsScene>
 #include <QTimer>

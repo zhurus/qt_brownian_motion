@@ -1,4 +1,4 @@
-#include "Viewport.h"
+#include "viewport.h"
 
 Viewport::Viewport(QGraphicsScene* scene, QWidget* parent):
     QGraphicsView(scene, parent)
