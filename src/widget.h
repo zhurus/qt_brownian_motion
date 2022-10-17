@@ -6,6 +6,7 @@
 #include <QWidget>
 #include <QGraphicsScene>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
 #include <QLabel>
 #include <QPushButton>
 #include <vector>
@@ -38,7 +39,7 @@ private:
 
     QSpinBox* m_particlesCountEdit;
     QSpinBox* m_particleSizeEdit;
-    QSpinBox* m_speedLimitEdit;
+    QDoubleSpinBox* m_speedLimitEdit;
     QSpinBox* m_timestepEdit;
 
     QPushButton* m_startBtn;

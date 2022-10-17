@@ -10,7 +10,7 @@ Widget::Widget(QWidget *parent):
     m_view(new Viewport(m_scene, this)),
     m_particlesCountEdit(new QSpinBox(this)),
     m_particleSizeEdit(new QSpinBox(this)),
-    m_speedLimitEdit(new QSpinBox(this)),
+    m_speedLimitEdit(new QDoubleSpinBox(this)),
     m_timestepEdit(new QSpinBox(this)),
     m_startBtn(new QPushButton(tr("Start"), this)),
     m_pauseBtn(new QPushButton(tr("Pause"), this)),
@@ -29,14 +29,15 @@ Widget::Widget(QWidget *parent):
     side_layout->addRow( tr("Speed limit"), m_speedLimitEdit );
     side_layout->addRow( tr("Time step, msec"), m_timestepEdit );
 
-    m_particlesCountEdit->setRange(2, 10000);
+    m_particlesCountEdit->setRange(1, 10000);
     m_particlesCountEdit->setValue(10);
 
     m_particleSizeEdit->setValue(10);
     m_particleSizeEdit->setMinimum(1);
 
-    m_speedLimitEdit->setValue(5);
-    m_speedLimitEdit->setMinimum(1);
+    m_speedLimitEdit->setValue(2);
+    m_speedLimitEdit->setMinimum(0.001);
+    m_speedLimitEdit->setStepType(QDoubleSpinBox::StepType::AdaptiveDecimalStepType);
 
     m_timestepEdit->setValue(30);
     m_timestepEdit->setRange(1, 10000);

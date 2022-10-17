@@ -17,7 +17,10 @@ public:
 
     void move();
     void checkContact(Particle* other);
+
+    QVector2D speed() const;
     void setSpeed(const QVector2D& speed);
+
     int particleSize() const;
     QPointF center() const;
 

@@ -17,14 +17,18 @@ Particle::Particle(const QPointF& center, int particle_size, int speed_limit)
 
 void Particle::move()
 {
-    if( m_center.x() + m_particleSize / 2 > SCENE_WIDTH || m_center.x() - m_particleSize / 2 < 0 )
-    {
-        m_speed.setX( -m_speed.x() );
+    if( m_center.x() + m_particleSize / 2 > SCENE_WIDTH ) {
+        m_speed.setX( -std::abs( m_speed.x() ) );
+    } else if( m_center.x() - m_particleSize / 2 < 0 ) {
+        m_speed.setX( std::abs( m_speed.x() ) );
     }
-    if( m_center.y() + m_particleSize / 2 > SCENE_HEIGHT || m_center.y() - m_particleSize / 2 < 0 )
-    {
-        m_speed.setY( -m_speed.y() );
+
+    if( m_center.y() + m_particleSize / 2 > SCENE_HEIGHT ) {
+        m_speed.setY( -std::abs( m_speed.y() ) );
+    } else if( m_center.y() - m_particleSize / 2 < 0 ) {
+        m_speed.setY( std::abs(m_speed.y()) );
     }
+
     m_center.setX( m_center.x() + m_speed.x() );
     m_center.setY( m_center.y() + m_speed.y() );
 }
@@ -33,32 +37,42 @@ void Particle::checkContact(Particle* other)
 {
     qreal distance = ( QVector2D( m_center ) - QVector2D( other->m_center ) ).length();
     bool is_contact = distance < ( m_particleSize + other->m_particleSize ) / 2;
-    // TODO additional check
-    if( is_contact ) {
-        QVector2D n = QVector2D( other->m_center.x() - m_center.x(),
-                                 other->m_center.y() - m_center.y() ).normalized();
-        QVector2D tau = QVector2D( n.y(), -n.x() );
-
-        double vn1 = QVector2D::dotProduct( m_speed, n );
-        double vt1 = QVector2D::dotProduct( m_speed,tau );
-        double vn2 = QVector2D::dotProduct( other->m_speed, n );
-        double vt2 = QVector2D::dotProduct( other->m_speed, tau );
-        if( vn1 < 0 && vn2 > 0 ) {
-            return;
-        }
-
-        double vn2_ = vn1;
-        double vn1_ = vn1 + vn2 - vn2_;
-
-        m_speed = vt1 * tau + vn1_ * n;
-        other->m_speed = vt2 * tau + vn2_ * n;
-        if( m_isInfected ) {
-            other->m_isInfected = true;
-        }
-        if( other->m_isInfected ) {
-            m_isInfected = true;
-        }
+    if( !is_contact ) {
+        return;
     }
+
+    QVector2D n = QVector2D( other->m_center.x() - m_center.x(),
+                             other->m_center.y() - m_center.y() ).normalized();
+    if( QVector2D::dotProduct( other->m_speed - m_speed, n ) > 0 ) {
+        return;
+    }
+
+    QVector2D tau = QVector2D( n.y(), -n.x() );
+
+    double vn1 = QVector2D::dotProduct( m_speed, n );
+    double vt1 = QVector2D::dotProduct( m_speed,tau );
+    double vn2 = QVector2D::dotProduct( other->m_speed, n );
+    double vt2 = QVector2D::dotProduct( other->m_speed, tau );
+    if( vn1 < 0 && vn2 > 0 ) {
+        return;
+    }
+
+    double vn2_ = vn1;
+    double vn1_ = vn1 + vn2 - vn2_;
+
+    m_speed = vt1 * tau + vn1_ * n;
+    other->m_speed = vt2 * tau + vn2_ * n;
+    if( m_isInfected ) {
+        other->m_isInfected = true;
+    }
+    if( other->m_isInfected ) {
+        m_isInfected = true;
+    }
+}
+
+QVector2D Particle::speed() const
+{
+    return m_speed;
 }
 
 void Particle::setSpeed(const QVector2D& speed)
