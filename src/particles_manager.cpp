@@ -44,6 +44,11 @@ void ParticlesManager::stop()
     m_timer.stop();
 }
 
+void ParticlesManager::emplaceLoad(Load::Ptr&& load)
+{
+    m_loads.emplace_back(std::move(load));
+}
+
 void ParticlesManager::timeout()
 {
     for( size_t i = 0; i < m_particles.size(); ++i ) {
@@ -54,6 +59,9 @@ void ParticlesManager::timeout()
 
     for( auto particle : m_particles ) {
         particle->move();
+        for( const auto& load : m_loads ) {
+            load->affectParticle(particle);
+        }
     }
     m_scene->update(m_scene->sceneRect());
 }

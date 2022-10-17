@@ -35,7 +35,7 @@ private:
     ParticlesManager* m_particlesManager;
 
     QGraphicsScene* m_scene;
-    QGraphicsView* m_view;
+    Viewport* m_view;
 
     QSpinBox* m_particlesCountEdit;
     QSpinBox* m_particleSizeEdit;

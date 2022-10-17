@@ -2,6 +2,7 @@
 
 #include "settings.h"
 #include "particle.h"
+#include "load.h"
 #include <QGraphicsScene>
 #include <QTimer>
 #include <QObject>
@@ -17,10 +18,14 @@ public:
     Q_SLOT void start();
     Q_SLOT void stop();
 
+    void emplaceLoad( Load::Ptr&& load );
+
 private:
     Q_SLOT void timeout();
 
 private:
+    std::vector<Load::Ptr> m_loads;
+
     QGraphicsScene* const m_scene;
     std::vector<Particle*> m_particles;
     QTimer m_timer;

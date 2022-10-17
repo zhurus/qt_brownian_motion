@@ -18,6 +18,14 @@ Widget::Widget(QWidget *parent):
 {
     m_particlesManager = new ParticlesManager( m_scene, this );
 
+    auto magnetic_cursor = std::make_unique<MagneticCursor>(0.1);
+    connect(m_view, &Viewport::mouseStateChanged, this, [load = magnetic_cursor.get()](bool pressed, const QPointF& pos){
+        load->setEnabled(pressed);
+        load->setCursorPos(pos);
+    });
+    m_particlesManager->emplaceLoad( std::make_unique<Damping>() );
+    m_particlesManager->emplaceLoad( std::move(magnetic_cursor) );
+
     auto main_layout = new QHBoxLayout(this);
     main_layout->addWidget( m_view );
 
